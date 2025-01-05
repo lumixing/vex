@@ -52,17 +52,25 @@ fn event(e &tui.Event, x voidptr) {
 
 	mut app := unsafe { &App(x) }
 
-	if e.typ == .key_down && e.code == .w {
+	if e.typ == .key_down && (e.code == .w || e.code == .up) {
 		app.counter -= 1
 		if app.counter < 0 {
 			app.counter = app.tracks.len - 1
 		}
+
+		if e.modifiers.has(.ctrl) {
+			app.counter = 0
+		}
 	}
 
-	if e.typ == .key_down && e.code == .s {
+	if e.typ == .key_down && (e.code == .s || e.code == .down) {
 		app.counter += 1
 		if app.counter >= app.tracks.len {
 			app.counter = 0
+		}
+
+		if e.modifiers.has(.ctrl) {
+			app.counter = app.tracks.len - 1
 		}
 	}
 
@@ -165,33 +173,94 @@ fn frame(_x voidptr) {
 			app.tui.draw_text(0, y, 'no track playing!')
 		}
 
-		app.tui.draw_text(0, y - 1, '${time.now().unix_milli()}')
+		mut mode := '???'
+		if app.counter in 0..y / 2 - 3 {
+			mode = 'begin'
+		} else if app.counter in app.tracks.len - y / 2..app.tracks.len {
+			mode = 'end'
+		} else {
+			mode = 'middle'
+		}
+
+		app.tui.draw_text(0, y - 1, '${mode} ${x} ${y} (${x / 2} ${y / 2}) ${time.now().unix_milli()}')
 
 		// for i, item in app.tracks {
-		mut j := 0
-		for i in app.counter .. app.tracks.len {
-			if j >= y - 3 {
-				break
+		if mode == 'begin' {
+			for item_idx in 0 .. y - 3 {
+				if item_idx >= app.tracks.len {
+					break
+				}
+
+				item := app.tracks[item_idx]
+
+				if app.counter == item_idx {
+					app.tui.set_color(r: 0, g: 0, b: 0)
+					app.tui.set_bg_color(r: 255, g: 255, b: 255)
+				} else {
+					app.tui.reset_color()
+					app.tui.reset_bg_color()
+				}
+
+				track_name := item.track.name
+				artist_name := item.track.artists[0].name
+
+				// app.tui.draw_text(0, i + 1, '${str_clamp(track_name, x / 3 * 2)} ${str_clamp(artist_name,
+				// 	x - x / 3 * 2 - 1)}')
+				app.tui.draw_text(0, item_idx + 1, '${item_idx + 1:3} ${str_clamp(track_name,
+					20)} ${str_clamp(artist_name, 20)} ${ms_to_time_str(item.track.duration_ms)}')
 			}
-			item := app.tracks[i]
+		} else if mode == 'middle' {
+			mut j := 0
 
-			if app.counter == i {
-				app.tui.set_color(r: 0, g: 0, b: 0)
-				app.tui.set_bg_color(r: 255, g: 255, b: 255)
-			} else {
-				app.tui.reset_color()
-				app.tui.reset_bg_color()
+			for item_idx in app.counter - y / 2 + 3 .. app.counter + y / 2 + 1 {
+				item := app.tracks[item_idx]
+
+				if app.counter == item_idx {
+					app.tui.set_color(r: 0, g: 0, b: 0)
+					app.tui.set_bg_color(r: 255, g: 255, b: 255)
+				} else {
+					app.tui.reset_color()
+					app.tui.reset_bg_color()
+				}
+
+				track_name := item.track.name
+				artist_name := item.track.artists[0].name
+
+				// app.tui.draw_text(0, i + 1, '${str_clamp(track_name, x / 3 * 2)} ${str_clamp(artist_name,
+				// 	x - x / 3 * 2 - 1)}')
+				app.tui.draw_text(0, j + 1, '${item_idx + 1:3} ${str_clamp(track_name,
+					20)} ${str_clamp(artist_name, 20)} ${ms_to_time_str(item.track.duration_ms)}')
+
+				j += 1
 			}
+		} else if mode == 'end' {
+			mut j := 0
 
-			track_name := item.track.name
-			artist_name := item.track.artists[0].name
+			for item_idx in app.tracks.len - y + 3 .. app.tracks.len {
+				if item_idx < 0 {
+					continue
+				}
 
-			// app.tui.draw_text(0, i + 1, '${str_clamp(track_name, x / 3 * 2)} ${str_clamp(artist_name,
-			// 	x - x / 3 * 2 - 1)}')
-			app.tui.draw_text(0, j + 1, '${str_clamp(track_name, 20)} ${str_clamp(artist_name,
-				20)} ${ms_to_time_str(item.track.duration_ms)}')
+				item := app.tracks[item_idx]
 
-			j += 1
+				if app.counter == item_idx {
+					app.tui.set_color(r: 0, g: 0, b: 0)
+					app.tui.set_bg_color(r: 255, g: 255, b: 255)
+				} else {
+					app.tui.reset_color()
+					app.tui.reset_bg_color()
+				}
+
+				track_name := item.track.name
+				artist_name := item.track.artists[0].name
+
+				// app.tui.draw_text(0, i + 1, '${str_clamp(track_name, x / 3 * 2)} ${str_clamp(artist_name,
+				// 	x - x / 3 * 2 - 1)}')
+				app.tui.draw_text(0, j + 1, '${item_idx + 1:3} ${str_clamp(track_name,
+					20)} ${str_clamp(artist_name, 20)} ${ms_to_time_str(item.track.duration_ms)}')
+
+				j += 1
+			}
 		}
 	}
 
