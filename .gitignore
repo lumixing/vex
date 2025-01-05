@@ -1,0 +1,4 @@
+*.exe
+config.toml
+access_token.txt
+*.log
