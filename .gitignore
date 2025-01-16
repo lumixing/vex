@@ -1,4 +1,4 @@
 *.exe
 config.toml
-access_token.txt
+session.json
 *.log
